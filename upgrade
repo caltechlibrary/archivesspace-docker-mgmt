@@ -24,43 +24,47 @@ unzip "archivesspace-docker-${TAG}.zip"
 # remove the zip file
 rm "archivesspace-docker-${TAG}.zip"
 
-replace_docker_env_value() {
-    KEY=$1
-    OLD=$2
-    NEW=$3
-    # different sed syntax for macOS (BSD) and Linux (GNU)
-    case "$(uname)" in
-        Darwin*)
-            sed -i '' "/^${KEY}=/ s|${OLD}|${NEW}|g" archivesspace/.env
-            ;;
-        *)
-            sed -i "/^${KEY}=/ s|${OLD}|${NEW}|g" archivesspace/.env
-            ;;
-    esac
-}
-replace_configuration_value() {
+replace_config_value() {
     KEY=$1
     OLD=$2
     NEW=$3
     FILE=$4
-    # different sed syntax for macOS (BSD) and Linux (GNU)
-    case "$(uname)" in
-        Darwin*)
-            sed -i '' "/^${KEY}=/ s|${OLD}|${NEW}|g" archivesspace/"${FILE}"
-            ;;
-        *)
-            sed -i "/^${KEY}=/ s|${OLD}|${NEW}|g" archivesspace/"${FILE}"
-            ;;
-    esac
+    # helper function to run sed with proper OS-specific syntax
+    run_sed() {
+        local pattern=$1
+        local file=$2
+        case "$(uname)" in
+            Darwin*)
+                sed -i '' "$pattern" "$file"
+                ;;
+            *)
+                sed -i "$pattern" "$file"
+                ;;
+        esac
+    }
+    # determine pattern based on file type
+    if [[ "$FILE" == *.rb ]]; then
+        # ruby file format: AppConfig[:key] = "value" or 'value'
+        # escape special characters for sed
+        ESCAPED_KEY=$(echo "$KEY" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        ESCAPED_OLD=$(echo "$OLD" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        ESCAPED_NEW=$(echo "$NEW" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        PATTERN="/${ESCAPED_KEY}/ s|${ESCAPED_OLD}|${ESCAPED_NEW}|g"
+    else
+        # .env file format (or default): KEY=value
+        PATTERN="/^${KEY}=/ s|${OLD}|${NEW}|g"
+    fi
+    # apply the pattern
+    run_sed "$PATTERN" "archivesspace/${FILE}"
 }
 
 # replace values in the docker .env file
-replace_docker_env_value "MYSQL_DATABASE" "archivesspace" "${DB}"
-# replace values in the config.rb file (note that keys have a trailing space character)
-replace_configuration_value "AppConfig[:db_url] " "archivesspace" "${DB}" "config/config.rb"
-replace_configuration_value "AppConfig[:oai_proxy_url] " "localhost" "${DOMAIN}" "config/config.rb"
-replace_configuration_value "AppConfig[:frontend_proxy_url] " "localhost" "${DOMAIN}" "config/config.rb"
-replace_configuration_value "AppConfig[:public_proxy_url] " "localhost" "${DOMAIN}" "config/config.rb"
+replace_config_value "MYSQL_DATABASE" "archivesspace" "${DB}" ".env"
+# replace values in the config.rb file
+replace_config_value "AppConfig[:db_url]" "archivesspace" "${DB}" "config/config.rb"
+replace_config_value "AppConfig[:oai_proxy_url]" "localhost" "${DOMAIN}" "config/config.rb"
+replace_config_value "AppConfig[:frontend_proxy_url]" "localhost" "${DOMAIN}" "config/config.rb"
+replace_config_value "AppConfig[:public_proxy_url]" "localhost" "${DOMAIN}" "config/config.rb"
 
 # run the restore script
 ./restore --upgrade
