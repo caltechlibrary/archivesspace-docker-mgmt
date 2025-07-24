@@ -20,7 +20,7 @@ fi
 # download latest archivesspace-docker release
 curl -L -O "https://github.com/archivesspace/archivesspace/releases/download/${TAG}/archivesspace-docker-${TAG}.zip"
 # unzip
-unzip "archivesspace-docker-${TAG}.zip"
+unzip -q "archivesspace-docker-${TAG}.zip"
 # remove the zip file
 rm "archivesspace-docker-${TAG}.zip"
 
