@@ -38,10 +38,29 @@ replace_docker_env_value() {
             ;;
     esac
 }
+replace_configuration_value() {
+    KEY=$1
+    OLD=$2
+    NEW=$3
+    FILE=$4
+    # different sed syntax for macOS (BSD) and Linux (GNU)
+    case "$(uname)" in
+        Darwin*)
+            sed -i '' "/^${KEY}=/ s|${OLD}|${NEW}|g" archivesspace/"${FILE}"
+            ;;
+        *)
+            sed -i "/^${KEY}=/ s|${OLD}|${NEW}|g" archivesspace/"${FILE}"
+            ;;
+    esac
+}
 
 # replace values in the docker .env file
-replace_docker_env_value "APPCONFIG_DB_URL" "archivesspace" "${DB}"
 replace_docker_env_value "MYSQL_DATABASE" "archivesspace" "${DB}"
+# replace values in the config.rb file (note that keys have a trailing space character)
+replace_configuration_value "AppConfig[:db_url] " "archivesspace" "${DB}" "config/config.rb"
+replace_configuration_value "AppConfig[:oai_proxy_url] " "localhost" "${DOMAIN}" "config/config.rb"
+replace_configuration_value "AppConfig[:frontend_proxy_url] " "localhost" "${DOMAIN}" "config/config.rb"
+replace_configuration_value "AppConfig[:public_proxy_url] " "localhost" "${DOMAIN}" "config/config.rb"
 
 # run the restore script
 ./restore --upgrade
