@@ -75,7 +75,10 @@ gunzip -k "backups/${DB}-${datestamp}.sql.gz"
 mv "backups/${DB}-${datestamp}.sql" "archivesspace/sql"
 
 # rename the unzipped directory
-mv -f archivesspace "archivesspace-docker-${TAG}"
+if [ -d "archivesspace-docker-${TAG}" ]; then
+    rm -rf "archivesspace-docker-${TAG}"
+fi
+mv archivesspace "archivesspace-docker-${TAG}"
 
 # bring down archivesspace
 cd /opt/archivesspace || exit 1
