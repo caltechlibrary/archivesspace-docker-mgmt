@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "😵 SCRIPT MUST BE RUN AS ROOT (to modify /opt files)"
+    echo "EXAMPLE: sudo ./$0 [--rebuild-solr]"
+    exit 1
+fi
+
+# load environment variables from .env file
+if [ -f .env ]; then
+    set -a  # automatically export all variables
+    # shellcheck source=/dev/null
+    . ./.env
+    set +a
+else
+    echo ".env file not found"
+    exit 1
+fi
+
+# download latest archivesspace-docker release
+curl -L -O "https://github.com/archivesspace/archivesspace/releases/download/${TAG}/archivesspace-docker-${TAG}.zip"
+# unzip
+unzip "archivesspace-docker-${TAG}.zip"
+# remove the zip file
+rm "archivesspace-docker-${TAG}.zip"
+
+replace_docker_env_value() {
+    KEY=$1
+    OLD=$2
+    NEW=$3
+    # different sed syntax for macOS (BSD) and Linux (GNU)
+    case "$(uname)" in
+        Darwin*)
+            sed -i '' "/^${KEY}=/ s|${OLD}|${NEW}|g" archivesspace/.env
+            ;;
+        *)
+            sed -i "/^${KEY}=/ s|${OLD}|${NEW}|g" archivesspace/.env
+            ;;
+    esac
+}
+
+# replace values in the docker .env file
+replace_docker_env_value "APPCONFIG_DB_URL" "archivesspace" "${DB}"
+replace_docker_env_value "MYSQL_DATABASE" "archivesspace" "${DB}"
+
+# run the restore script
+./restore --upgrade
+# unzip the database backup
+datestamp=$(TZ=':US/Pacific' date +'%Y-%m-%d')
+gunzip -k "backups/${DB}-${datestamp}.sql.gz"
+# move db to the sql directory inside the archivesspace-docker directory
+mv "backups/${DB}-${datestamp}.sql" "archivesspace/sql"
+
+# rename the unzipped directory
+mv archivesspace "archivesspace-docker-${TAG}"
+
+# bring down archivesspace
+cd /opt/archivesspace || exit 1
+docker compose down
+
+if [[ "$1" == "--rebuild-solr" ]]; then
+    docker volume rm archivesspace_app-data archivesspace_solr-data
+fi
+
+# change back to the directory where this script is located
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
+
+# relink /opt/archivesspace directory
+ln -sf "$(pwd)/archivesspace-docker-${TAG}" /opt/archivesspace
+
+# bring up archivesspace
+cd /opt/archivesspace || exit 1
+docker compose pull
+docker compose up -d --build --force-recreate
+
+echo "🎉 Upgrade complete! ArchivesSpace is now running with the latest version. It may take a few minutes to become available."

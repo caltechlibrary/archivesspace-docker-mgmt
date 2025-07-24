@@ -1,0 +1,67 @@
+#!/bin/bash
+# GET THE DATABASE BACKUP FROM S3 BUCKET
+
+if [ "$1" = "-h" ]; then
+    echo "USAGE: $0 [<ISO DATE>]"
+    exit 0
+fi
+
+# load environment variables from .env file
+if [ -f .env ]; then
+    set -a  # automatically export all variables
+    # shellcheck source=/dev/null
+    . ./.env
+    set +a
+else
+    echo ".env file not found"
+    exit 1
+fi
+
+backups_dir="$(dirname "$(readlink -f "$0")")"/backups
+# use the value of $TMPDIR if it is set, otherwise use /tmp
+# see https://www.grymoire.com/Unix/Sh.html#uh-32
+tmp_dir=${TMPDIR-/tmp}
+if [[ -z "$1" || "$1" == "--upgrade" ]]; then
+    # NOTE the filenames are named for the date they were generated
+    # $ aws s3 ls s3://example-bucket/
+    # ...
+    # 2025-04-01 05:07:54   23270763 ${DB}-2025-04-01.sql.gz
+    datestamp=$(TZ=':US/Pacific' date +'%Y-%m-%d')
+else
+    datestamp="$1"
+fi
+# set the local filepath
+local_filepath="${backups_dir}/${DB}-${datestamp}.sql.gz"
+# download the file if it doesn’t exist
+if [ ! -f "$local_filepath" ]; then
+    # download ArchivesSpace backup from S3
+    s3path="s3://${BUCKET}/${DB}-${datestamp}.sql.gz"
+    if ! /usr/local/bin/aws s3 cp "$s3path" "$tmp_dir" --no-progress; then
+        echo "😵 FAILED TO DOWNLOAD BACKUP DATABASE FROM S3."
+        exit 1
+    fi
+    # decompress the file
+    gunzip -k "${tmp_dir}/${DB}-${datestamp}.sql.gz"
+fi
+
+# change directory for docker commands
+cd /opt/archivesspace || exit 1
+
+# restore the database from the backup
+if [[ "$1" != "--upgrade" ]]; then
+    docker exec mysql mysql -uas -pas123 archivesspace < "${tmp_dir}/${DB}-${datestamp}.sql"
+fi
+
+# change the admin password
+docker exec archivesspace /archivesspace/scripts/password-reset.sh admin admin
+
+# soft reindex
+docker exec archivesspace rm -f /archivesspace/data/indexer_state/*
+docker exec archivesspace rm -f /archivesspace/data/indexer_pui_state/*
+
+# change back to the original directory
+cd - || exit 1
+
+# store the compressed backup db
+cp "${tmp_dir}/${DB}-${datestamp}.sql.gz" "$local_filepath"
+rm -f "${tmp_dir}/${DB}-${datestamp}.sql*"
