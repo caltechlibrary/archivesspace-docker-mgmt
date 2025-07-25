@@ -78,29 +78,24 @@ gunzip -k "backups/${DB}-${datestamp}.sql.gz"
 # move db to the sql directory inside the archivesspace-docker directory
 mv "backups/${DB}-${datestamp}.sql" "archivesspace/sql"
 
-# rename the unzipped directory
-if [ -d "archivesspace-docker-${TAG}" ]; then
-    rm -rf "archivesspace-docker-${TAG}"
+# move the configured application directory
+if [ -d "/opt/archivesspace-docker-${TAG}" ]; then
+    rm -rf "/opt/archivesspace-docker-${TAG}"
 fi
-mv archivesspace "archivesspace-docker-${TAG}"
+mv archivesspace "/opt/archivesspace-docker-${TAG}"
 
 # bring down archivesspace
-cd /opt/archivesspace || exit 1
-docker compose down
+docker compose --project-name archivesspace --file /opt/archivesspace/docker-compose.yml down
 
 if [[ "$1" == "--rebuild-solr" ]]; then
     docker volume rm archivesspace_app-data archivesspace_solr-data
 fi
 
-# change back to the directory where this script is located
-cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
-
 # relink /opt/archivesspace directory
-ln -sf "$(pwd)/archivesspace-docker-${TAG}" /opt/archivesspace
+ln -sf "/opt/archivesspace-docker-${TAG}" /opt/archivesspace
 
 # bring up archivesspace
-cd /opt/archivesspace || exit 1
-docker compose pull
-docker compose up -d --build --force-recreate
+docker compose --project-name archivesspace --file /opt/archivesspace/docker-compose.yml pull
+docker compose --project-name archivesspace --file /opt/archivesspace/docker-compose.yml up -d --build --force-recreate
 
 echo "🎉 Upgrade complete! ArchivesSpace is now running with the latest version. It may take a few minutes to become available."

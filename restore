@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # GET THE DATABASE BACKUP FROM S3 BUCKET
 
 if [ "$1" = "-h" ]; then
-    echo "USAGE: $0 [<ISO DATE>]"
+    echo "USAGE: ./$0 [<ISO DATE>]"
     exit 0
 fi
 
@@ -44,9 +44,6 @@ if [ ! -f "$local_filepath" ]; then
     gunzip -k "${tmp_dir}/${DB}-${datestamp}.sql.gz"
 fi
 
-# change directory for docker commands
-cd /opt/archivesspace || exit 1
-
 # restore the database from the backup
 if [[ "$1" != "--upgrade" ]]; then
     docker exec mysql mysql -uas -pas123 archivesspace < "${tmp_dir}/${DB}-${datestamp}.sql"
@@ -58,9 +55,6 @@ docker exec archivesspace /archivesspace/scripts/password-reset.sh admin admin
 # soft reindex
 docker exec archivesspace rm -f /archivesspace/data/indexer_state/*
 docker exec archivesspace rm -f /archivesspace/data/indexer_pui_state/*
-
-# change back to the original directory
-cd - || exit 1
 
 # store the compressed backup db
 cp "${tmp_dir}/${DB}-${datestamp}.sql.gz" "$local_filepath"
