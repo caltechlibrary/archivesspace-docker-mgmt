@@ -58,21 +58,31 @@ gunzip -k "backups/${DB}-${datestamp}.sql.gz"
 # move db to the sql directory inside the archivesspace-docker directory
 mv "backups/${DB}-${datestamp}.sql" "archivesspace/sql"
 
+# bring down archivesspace
+docker compose --project-name archivesspace --file /opt/archivesspace/docker-compose.yml down
+
 # move the configured application directory
 if [ -d "/opt/archivesspace-docker-${TAG}" ]; then
     rm -rf "/opt/archivesspace-docker-${TAG}"
 fi
 mv archivesspace "/opt/archivesspace-docker-${TAG}"
 
-# bring down archivesspace
-docker compose --project-name archivesspace --file /opt/archivesspace/docker-compose.yml down
-
 if [[ "$1" == "--rebuild-solr" ]]; then
     docker volume rm archivesspace_app-data archivesspace_solr-data
 fi
 
-# relink /opt/archivesspace directory
-ln -sf "/opt/archivesspace-docker-${TAG}" /opt/archivesspace
+# symlink /opt/archivesspace
+if [ -L "/opt/archivesspace" ]; then
+    if [ "$(readlink /opt/archivesspace)" != "/opt/archivesspace-docker-${TAG}" ]; then
+        rm /opt/archivesspace
+        ln -s "/opt/archivesspace-docker-${TAG}" /opt/archivesspace
+    fi
+elif [ -e "/opt/archivesspace" ]; then
+    echo "❌ /opt/archivesspace exists and is not a symlink"
+    exit 1
+else
+    ln -s "/opt/archivesspace-docker-${TAG}" /opt/archivesspace
+fi
 
 # bring up archivesspace
 docker compose --project-name archivesspace --file /opt/archivesspace/docker-compose.yml pull
