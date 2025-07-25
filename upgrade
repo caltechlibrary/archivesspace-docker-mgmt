@@ -41,6 +41,7 @@ replace_config_value() {
 
 # replace values in the docker .env file
 replace_config_value "MYSQL_DATABASE" "archivesspace" "${DB}" ".env"
+replace_config_value "NGINX_PORT" "80" "${NGINX_PORT}" ".env"
 # replace values in the config.rb file
 replace_config_value "AppConfig[:db_url]" "archivesspace" "${DB}" "config/config.rb"
 replace_config_value "AppConfig[:oai_proxy_url]" "localhost" "${DOMAIN}" "config/config.rb"
