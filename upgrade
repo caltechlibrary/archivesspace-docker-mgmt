@@ -29,37 +29,14 @@ replace_config_value() {
     local OLD="$2"
     local NEW="$3"
     local FILE="$4"
-    # helper function to run sed with proper OS-specific syntax
-    run_sed() {
-        local pattern="$1"
-        local file="$2"
-        case "$(uname)" in
-            Darwin*)
-                sed -i '' "$pattern" "$file"
-                ;;
-            *)
-                sed -i "$pattern" "$file"
-                ;;
-        esac
-    }
     if [[ "$FILE" == *.rb ]]; then
-        # for ruby config files, we need to escape the key properly for regex
-        # convert AppConfig[:key] to AppConfig\[:key\] for sed
-        local ESCAPED_KEY
-        ESCAPED_KEY=$(printf '%s\n' "$KEY" | sed 's/\[/\\[/g; s/\]/\\]/g; s/:/\\:/g')
-        # escape special regex characters in OLD and NEW values
-        local ESCAPED_OLD
-        ESCAPED_OLD=$(printf '%s\n' "$OLD" | sed 's/[[\.*^$()+?{|]/\\&/g; s|/|\\/|g')
-        local ESCAPED_NEW
-        ESCAPED_NEW=$(printf '%s\n' "$NEW" | sed 's/[[\.*^$()+?{|]/\\&/g; s|/|\\/|g')
-        # pattern: find lines containing the key, then substitute old with new
-        local PATTERN="/${ESCAPED_KEY}/ s/${ESCAPED_OLD}/${ESCAPED_NEW}/g"
+        # ruby file format: AppConfig[:key] = "value" or 'value'
+        # perl automatically escapes special characters when using \Q...\E
+        perl -i -pe "s/\Q$OLD\E/\Q$NEW\E/g if /\Q$KEY\E/" "$FILE"
     else
         # .env file format: KEY=value
-        local PATTERN="/^${KEY}=/ s|${OLD}|${NEW}|g"
+        perl -i -pe "s/\Q$OLD\E/\Q$NEW\E/g if /^$KEY=/" "$FILE"
     fi
-    # apply the pattern
-    run_sed "$PATTERN" "$FILE"
 }
 
 # replace values in the docker .env file
