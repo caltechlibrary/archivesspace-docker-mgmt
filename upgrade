@@ -31,11 +31,12 @@ replace_config_value() {
     local FILE="$4"
     if [[ "$FILE" == *.rb ]]; then
         # ruby file format: AppConfig[:key] = "value" or 'value'
-        # perl automatically escapes special characters when using \Q...\E
-        perl -i -pe "s/\Q$OLD\E/\Q$NEW\E/g if /\Q$KEY\E/" "$FILE"
+        # ensure line starts with the key (no leading comments or whitespace before key)
+        perl -i -pe "s/\Q$OLD\E/$NEW/g if /^\s*\Q$KEY\E/" "archivesspace/$FILE"
     else
         # .env file format: KEY=value
-        perl -i -pe "s/\Q$OLD\E/\Q$NEW\E/g if /^$KEY=/" "$FILE"
+        # ensure line starts with KEY= (no leading comments)
+        perl -i -pe "s/\Q$OLD\E/$NEW/g if /^\s*\Q$KEY\E=/" "archivesspace/$FILE"
     fi
 }
 
