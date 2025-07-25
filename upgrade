@@ -25,14 +25,14 @@ unzip -q "archivesspace-docker-${TAG}.zip"
 rm "archivesspace-docker-${TAG}.zip"
 
 replace_config_value() {
-    KEY=$1
-    OLD=$2
-    NEW=$3
-    FILE=$4
+    local KEY="$1"
+    local OLD="$2"
+    local NEW="$3"
+    local FILE="$4"
     # helper function to run sed with proper OS-specific syntax
     run_sed() {
-        local pattern=$1
-        local file=$2
+        local pattern="$1"
+        local file="$2"
         case "$(uname)" in
             Darwin*)
                 sed -i '' "$pattern" "$file"
@@ -42,20 +42,24 @@ replace_config_value() {
                 ;;
         esac
     }
-    # determine pattern based on file type
     if [[ "$FILE" == *.rb ]]; then
-        # ruby file format: AppConfig[:key] = "value" or 'value'
-        # escape special characters for sed
-        ESCAPED_KEY=$(echo "$KEY" | sed 's/[[\.*^$()+?{|]/\\&/g')
-        ESCAPED_OLD=$(echo "$OLD" | sed 's/[[\.*^$()+?{|]/\\&/g')
-        ESCAPED_NEW=$(echo "$NEW" | sed 's/[[\.*^$()+?{|]/\\&/g')
-        PATTERN="/${ESCAPED_KEY}/ s|${ESCAPED_OLD}|${ESCAPED_NEW}|g"
+        # for ruby config files, we need to escape the key properly for regex
+        # convert AppConfig[:key] to AppConfig\[:key\] for sed
+        local ESCAPED_KEY
+        ESCAPED_KEY=$(printf '%s\n' "$KEY" | sed 's/\[/\\[/g; s/\]/\\]/g; s/:/\\:/g')
+        # escape special regex characters in OLD and NEW values
+        local ESCAPED_OLD
+        ESCAPED_OLD=$(printf '%s\n' "$OLD" | sed 's/[[\.*^$()+?{|]/\\&/g; s|/|\\/|g')
+        local ESCAPED_NEW
+        ESCAPED_NEW=$(printf '%s\n' "$NEW" | sed 's/[[\.*^$()+?{|]/\\&/g; s|/|\\/|g')
+        # pattern: find lines containing the key, then substitute old with new
+        local PATTERN="/${ESCAPED_KEY}/ s/${ESCAPED_OLD}/${ESCAPED_NEW}/g"
     else
-        # .env file format (or default): KEY=value
-        PATTERN="/^${KEY}=/ s|${OLD}|${NEW}|g"
+        # .env file format: KEY=value
+        local PATTERN="/^${KEY}=/ s|${OLD}|${NEW}|g"
     fi
     # apply the pattern
-    run_sed "$PATTERN" "archivesspace/${FILE}"
+    run_sed "$PATTERN" "$FILE"
 }
 
 # replace values in the docker .env file
