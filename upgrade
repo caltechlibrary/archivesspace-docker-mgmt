@@ -37,7 +37,7 @@ echo '# Custom Configuration' > archivesspace/config/config.rb
 } >> archivesspace/config/config.rb
 echo '<%= stylesheet_link_tag "#{@base_url}/assets/custom.css" %>' > archivesspace/plugins/local/frontend/views/layout_head.html.erb
 mkdir -p archivesspace/plugins/local/frontend/assets
-echo 'body { border: thick solid fuchsia; min-height: 100vh; }' > archivesspace/plugins/local/frontend/assets/custom.css
+echo '.min-vh-100 { border: thick solid rebeccapurple }' > archivesspace/plugins/local/frontend/assets/custom.css
 
 replace_env_value() {
     local KEY="$1"
