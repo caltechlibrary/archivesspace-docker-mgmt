@@ -10,7 +10,7 @@ fi
 if [ -f .env ]; then
     set -a  # automatically export all variables
     # shellcheck source=/dev/null
-    . ./.env
+    . "$(dirname "$(readlink -f "$0")")"/.env
     set +a
 else
     echo ".env file not found"
@@ -20,7 +20,6 @@ fi
 backups_dir="$(dirname "$(readlink -f "$0")")"/backups
 # use the value of $TMPDIR if it is set, otherwise use /tmp
 # see https://www.grymoire.com/Unix/Sh.html#uh-32
-tmp_dir=${TMPDIR-/tmp}
 if [[ -z "$1" || "$1" == "--upgrade" ]]; then
     # NOTE the filenames are named for the date they were generated
     # $ aws s3 ls s3://example-bucket/
@@ -47,7 +46,7 @@ gunzip -k "$local_filepath"
 
 # restore the database from the backup
 if [[ "$1" != "--upgrade" ]]; then
-    docker exec mysql mysql -uas -pas123 archivesspace < "${backups_dir}/${DB}-${datestamp}.sql"
+    docker exec mysql mysql -uas -pas123 "$DB" < "${backups_dir}/${DB}-${datestamp}.sql"
 fi
 
 # clean up the uncompressed sql file
