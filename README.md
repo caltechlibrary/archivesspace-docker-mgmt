@@ -1,4 +1,4 @@
-# 🦫 archivesspace-upgrade-restore
+# 🦫 archivesspace-docker-mgmt
 
 `upgrade` is a script to upgrade an existing ArchivesSpace installation to the latest version. During the process, it will:
 
