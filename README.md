@@ -1,15 +1,14 @@
 # 🦫 archivesspace-docker-mgmt
 
-`upgrade` is a script to upgrade an existing ArchivesSpace installation to the latest version. During the process, it will:
+`install` is a script to install a new or upgrade an existing ArchivesSpace instance to a specified version. It will also restore the latest backup of the production database and soft reindex Solr.
 
-- upgrade the codebase of the ArchivesSpace application
-- restore the latest backup of the production database and soft reindex Solr
+Running `install --rebuild-solr` will also recreate the Solr core index from scratch. Use this when there are Solr configuration or schema changes in the release.
 
-With the `--rebuild-solr` option, it will also recreate the Solr core index from scratch. Use this when there are Solr configuration or schema changes in the release.
-
-`restore` is a script that can be run independently of `upgrade` to restore the latest backup of the production database and soft reindex Solr. It is useful for restoring a database backup without upgrading the codebase.
+`db` is a script that can be run independently of `install` to restore the latest backup of the production database and soft reindex Solr in an existing ArchivesSpace instance. It is useful for restoring a database backup without upgrading the codebase.
 
 With an argument in the format of `YYYY-MM-DD`, it will restore the database backup from that date. If no argument is provided, it will restore the latest backup.
+
+`remove` is a script that will stop and remove the Docker containers and volumes used by ArchivesSpace. Optionally it will remove all `archivesspace-docker-v4.*` codebase directories.
 
 ## .env
 

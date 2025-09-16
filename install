@@ -93,16 +93,22 @@ add_phpmyadmin_to_compose() {
 
 add_phpmyadmin_to_compose "archivesspace/docker-compose.yml"
 
-# run the restore script
-./restore --upgrade
+# run the db script
+./db --install
 # unzip the database backup
 datestamp=$(TZ=':US/Pacific' date +'%Y-%m-%d')
 gunzip -k "backups/${DB}-${datestamp}.sql.gz"
 # move db to the sql directory inside the archivesspace-docker directory
 mv "backups/${DB}-${datestamp}.sql" "archivesspace/sql"
 
+compose_file="${INSTALL_DIRECTORY}/archivesspace/docker-compose.yml"
+
 # bring down archivesspace
-docker compose --project-name archivesspace --file "${INSTALL_DIRECTORY}/archivesspace/docker-compose.yml" down
+if [ -f "$compose_file" ]; then
+    if docker compose --project-name archivesspace --file "$compose_file" ps -q | grep -q .; then
+        docker compose --project-name archivesspace --file "$compose_file" down
+    fi
+fi
 
 # move the configured application directory
 if [ -d "${INSTALL_DIRECTORY}/archivesspace-docker-${TAG}" ]; then
@@ -111,7 +117,12 @@ fi
 mv archivesspace "${INSTALL_DIRECTORY}/archivesspace-docker-${TAG}"
 
 if [[ "$1" == "--rebuild-solr" ]]; then
-    docker volume rm archivesspace_app-data archivesspace_solr-data
+    if docker volume inspect archivesspace_app-data >/dev/null 2>&1; then
+        docker volume rm archivesspace_app-data
+    fi
+    if docker volume inspect archivesspace_solr-data >/dev/null 2>&1; then
+        docker volume rm archivesspace_solr-data
+    fi
 fi
 
 # symlink $INSTALL_DIRECTORY/archivesspace
@@ -128,10 +139,31 @@ else
 fi
 
 # bring up archivesspace
-docker compose --project-name archivesspace --file "${INSTALL_DIRECTORY}/archivesspace/docker-compose.yml" pull
-docker compose --project-name archivesspace --file "${INSTALL_DIRECTORY}/archivesspace/docker-compose.yml" up -d --build --force-recreate
+docker compose --project-name archivesspace --file "$compose_file" pull
+docker compose --project-name archivesspace --file "$compose_file" up -d --build --force-recreate
 
-echo "🎉 Upgrade complete! ArchivesSpace is now running with the latest version.
+echo "Waiting for archivesspace container to become healthy..."
+while true; do
+    status=$(docker inspect --format='{{.State.Health.Status}}' archivesspace 2>/dev/null)
+    if [ "$status" = "healthy" ]; then
+        break
+    elif [ "$status" = "unhealthy" ]; then
+        echo "archivesspace container is unhealthy!"
+    elif [ -z "$status" ]; then
+        echo "archivesspace container not found yet..."
+    else
+        echo "archivesspace container status: $status"
+    fi
+    sleep 10
+done
+
+# change the admin password
+docker exec archivesspace /archivesspace/scripts/password-reset.sh admin admin
+# soft reindex
+docker exec archivesspace rm -f /archivesspace/data/indexer_state/*
+docker exec archivesspace rm -f /archivesspace/data/indexer_pui_state/*
+
+echo "🎉 ArchivesSpace ${TAG} has been installed!
 It may take a few minutes to become available at http://${DOMAIN}/ (Public UI) and http://${DOMAIN}/staff/ (Staff UI).
 View logs by running:
-docker compose --project-name archivesspace --file \"${INSTALL_DIRECTORY}/archivesspace/docker-compose.yml\" logs -f"
+docker compose --project-name archivesspace --file \"$compose_file\" logs -f"

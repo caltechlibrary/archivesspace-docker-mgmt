@@ -20,7 +20,7 @@ fi
 backups_dir="$(dirname "$(readlink -f "$0")")"/backups
 # use the value of $TMPDIR if it is set, otherwise use /tmp
 # see https://www.grymoire.com/Unix/Sh.html#uh-32
-if [[ -z "$1" || "$1" == "--upgrade" ]]; then
+if [[ -z "$1" || "$1" == "--install" ]]; then
     # NOTE the filenames are named for the date they were generated
     # $ aws s3 ls s3://example-bucket/
     # ...
@@ -44,17 +44,15 @@ fi
 # decompress the file
 gunzip -k "$local_filepath"
 
-# restore the database from the backup
-if [[ "$1" != "--upgrade" ]]; then
+if [ "$1" != "--install" ]; then
+    # restore the database from the backup
     docker exec mysql mysql -uas -pas123 "$DB" < "${backups_dir}/${DB}-${datestamp}.sql"
+    # change the admin password
+    docker exec archivesspace /archivesspace/scripts/password-reset.sh admin admin
+    # soft reindex
+    docker exec archivesspace rm -f /archivesspace/data/indexer_state/*
+    docker exec archivesspace rm -f /archivesspace/data/indexer_pui_state/*
 fi
 
 # clean up the uncompressed sql file
 rm -f "${backups_dir}/${DB}-${datestamp}.sql"
-
-# change the admin password
-docker exec archivesspace /archivesspace/scripts/password-reset.sh admin admin
-
-# soft reindex
-docker exec archivesspace rm -f /archivesspace/data/indexer_state/*
-docker exec archivesspace rm -f /archivesspace/data/indexer_pui_state/*

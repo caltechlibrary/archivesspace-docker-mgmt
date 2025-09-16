@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+# load environment variables from .env file
+if [ -f .env ]; then
+    set -a  # automatically export all variables
+    # shellcheck source=/dev/null
+    . ./.env
+    set +a
+else
+    echo ".env file not found"
+    exit 1
+fi
+if [ -z "$INSTALL_DIRECTORY" ] && [ "$(id -u)" -ne 0 ]; then
+    echo "😵 SCRIPT MUST BE RUN AS ROOT (to modify /opt files)"
+    echo "EXAMPLE: sudo ./$0"
+    exit 1
+fi
+if [ -z "$INSTALL_DIRECTORY" ]; then
+    INSTALL_DIRECTORY="/opt"
+fi
+
+# stop and remove existing containers and volumes
+compose_file="${INSTALL_DIRECTORY}/archivesspace/docker-compose.yml"
+if [ -f "$compose_file" ]; then
+    if docker compose --file "$compose_file" ps -q | grep -q .; then
+        docker compose --file "$compose_file" down -v --remove-orphans
+    fi
+fi
+
+# remove existing installation directory
+if [ -L "${INSTALL_DIRECTORY}/archivesspace" ]; then
+    rm -rf "${INSTALL_DIRECTORY}/archivesspace"
+fi
+
+if [ "$1" = "-y" ] || [ "$1" = "--yes" ]; then
+    # remove downloaded archivesspace-docker versions
+    rm -rf "${INSTALL_DIRECTORY}"/archivesspace-docker-v4.?.?
+else
+    read -rp "Do you also want to remove downloaded archivesspace-docker versions from ${INSTALL_DIRECTORY} (y/N)? " response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        rm -rf "${INSTALL_DIRECTORY}"/archivesspace-docker-v4.?.?
+    fi
+fi
