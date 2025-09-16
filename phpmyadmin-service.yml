@@ -1,5 +1,5 @@
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
+    image: phpmyadmin:latest
     platform: linux/x86_64
     container_name: phpmyadmin
     restart: unless-stopped
