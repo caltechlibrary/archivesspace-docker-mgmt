@@ -13,7 +13,7 @@ fi
 
 if [ -z "$INSTALL_DIRECTORY" ] && [ "$(id -u)" -ne 0 ]; then
     echo "😵 SCRIPT MUST BE RUN AS ROOT (to modify /opt files)"
-    echo "EXAMPLE: sudo ./$0 [--rebuild-solr]"
+    echo "EXAMPLE: sudo $0 [--rebuild-solr]"
     exit 1
 fi
 
