@@ -29,42 +29,54 @@ unzip -q "archivesspace-docker-${TAG}.zip"
 rm "archivesspace-docker-${TAG}.zip"
 
 # REPLACE ARCHIVESSPACE DEFAULT CONFIGURATION WITH CUSTOM CONFIGURATION
-mv archivesspace/config/config.rb archivesspace/config/default-config.rb
-echo '# Custom Configuration' > archivesspace/config/config.rb
-{
-    echo "AppConfig[:db_url] = 'jdbc:mysql://db:3306/${DB}?useUnicode=true&characterEncoding=UTF-8&user=as&password=as123&useSSL=false&allowPublicKeyRetrieval=true'"
-    echo 'AppConfig[:solr_url] = "http://solr:8983/solr/archivesspace"'
-    echo "AppConfig[:oai_proxy_url] = 'http://${DOMAIN}/oai'"
-    echo "AppConfig[:frontend_proxy_url] = 'http://${DOMAIN}/staff'"
-    echo "AppConfig[:public_proxy_url] = 'http://${DOMAIN}'"
-    echo 'AppConfig[:session_expire_after_seconds] = 604800'
-} >> archivesspace/config/config.rb
-echo '<%= stylesheet_link_tag "#{@base_url}/assets/custom.css" %>' > archivesspace/plugins/local/frontend/views/layout_head.html.erb
-mkdir -p archivesspace/plugins/local/frontend/assets
-echo '.min-vh-100 { border: thick solid rebeccapurple }' > archivesspace/plugins/local/frontend/assets/custom.css
-
 replace_env_value() {
     local KEY="$1"
     local OLD="$2"
     local NEW="$3"
     perl -i -pe "s/\\Q$OLD\\E/$NEW/g if /^\\s*\\Q$KEY\\E=/" "archivesspace/.env"
 }
-
-# replace values in the docker .env file
+mv archivesspace/config/config.rb archivesspace/config/default-config.rb
+echo '# Custom Configuration' > archivesspace/config/config.rb
+{
+    echo 'AppConfig[:solr_url] = "http://solr:8983/solr/archivesspace"'
+    echo 'AppConfig[:session_expire_after_seconds] = 604800'
+} >> archivesspace/config/config.rb
+if [ -z "$DB" ]; then
+    DB="archivesspace"
+fi
+echo "AppConfig[:db_url] = 'jdbc:mysql://db:3306/${DB}?useUnicode=true&characterEncoding=UTF-8&user=as&password=as123&useSSL=false&allowPublicKeyRetrieval=true'" >> archivesspace/config/config.rb
+# replace value in the docker .env file
 replace_env_value "MYSQL_DATABASE" "archivesspace" "${DB}" ".env"
-replace_env_value "NGINX_PORT" "80" "${NGINX_PORT}" ".env"
+if [ -z "$DOMAIN" ]; then
+    DOMAIN="localhost"
+fi
+{
+    echo "AppConfig[:public_proxy_url] = 'http://${DOMAIN}/'"
+    echo "AppConfig[:frontend_proxy_url] = 'http://${DOMAIN}/staff/'"
+    echo "AppConfig[:oai_proxy_url] = 'http://${DOMAIN}/oai/'"
+} >> archivesspace/config/config.rb
+# customize the UI with a border color
+if [ -n "$BORDER_COLOR" ]; then
+    echo '<%= stylesheet_link_tag "#{@base_url}/assets/custom.css" %>' > archivesspace/plugins/local/frontend/views/layout_head.html.erb
+    mkdir -p archivesspace/plugins/local/frontend/assets
+    echo ".min-vh-100 { border: thick solid ${BORDER_COLOR} }" > archivesspace/plugins/local/frontend/assets/custom.css
+fi
+if [ -n "$NGINX_PORT" ]; then
+    # replace value in the docker .env file
+    replace_env_value "NGINX_PORT" "80" "${NGINX_PORT}" ".env"
+fi
 
-# Add phpMyAdmin service to docker-compose.yml
+# add phpMyAdmin service to docker-compose.yml
 add_phpmyadmin_to_compose() {
     local compose_file="$1"
     local patch_file="./phpmyadmin-service.yml"
 
-    # Check if phpMyAdmin service already exists
+    # check if phpMyAdmin service already exists
     if grep -q "phpmyadmin:" "$compose_file"; then
         return 0
     fi
 
-    # Insert phpMyAdmin service before the volumes section
+    # insert phpMyAdmin service before the volumes section
     awk '
     /^volumes:/ {
         while ((getline line < "'"$patch_file"'") > 0) {
