@@ -35,7 +35,7 @@ local_filepath="${backups_dir}/${DB}-${datestamp}.sql.gz"
 if [ ! -f "$local_filepath" ]; then
     # download ArchivesSpace backup from S3
     s3path="s3://${BUCKET}/${DB}-${datestamp}.sql.gz"
-    if ! /usr/local/bin/aws s3 cp "$s3path" "$backups_dir" --no-progress; then
+    if ! aws s3 cp "$s3path" "$backups_dir" --no-progress; then
         echo "😵 FAILED TO DOWNLOAD BACKUP DATABASE FROM S3."
         exit 1
     fi
