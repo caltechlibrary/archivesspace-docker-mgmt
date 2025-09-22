@@ -45,8 +45,10 @@ fi
 gunzip -k "$local_filepath"
 
 if [ "$1" != "--install" ]; then
+    # drop the existing database and recreate it
+    docker exec mysql mysql -uas -pas123 -e "DROP DATABASE IF EXISTS $DB; CREATE DATABASE $DB;"
     # restore the database from the backup
-    docker exec mysql mysql -uas -pas123 "$DB" < "${backups_dir}/${DB}-${datestamp}.sql"
+    cat "${backups_dir}/${DB}-${datestamp}.sql" | docker exec -i mysql mysql -uas -pas123 "$DB"
     # change the admin password
     docker exec archivesspace /archivesspace/scripts/password-reset.sh admin admin
     # soft reindex

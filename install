@@ -116,7 +116,15 @@ add_phpmyadmin_to_compose "archivesspace/docker-compose.yml"
 datestamp=$(TZ=':US/Pacific' date +'%Y-%m-%d')
 gunzip -k "backups/${DB}-${datestamp}.sql.gz"
 # move db to the sql directory inside the archivesspace-docker directory
+# (this does not seem to overwrite an existing database inside the mysql container)
 mv "backups/${DB}-${datestamp}.sql" "archivesspace/sql"
+# check if mysql container is running
+if docker ps --format '{{.Names}}' | grep -q '^mysql$'; then
+    # drop the existing database and recreate it
+    docker exec mysql mysql -uas -pas123 -e "DROP DATABASE IF EXISTS $DB; CREATE DATABASE $DB;"
+    # restore the database from the backup
+    cat "archivesspace/sql/${DB}-${datestamp}.sql" | docker exec -i mysql mysql -uas -pas123 "$DB"
+fi
 
 compose_file="${INSTALL_DIRECTORY}/archivesspace/docker-compose.yml"
 
