@@ -142,6 +142,7 @@ fi
 mv archivesspace "${INSTALL_DIRECTORY}/archivesspace-docker-${TAG}"
 
 if [[ "$1" == "--rebuild-solr" ]]; then
+    docker compose --project-name archivesspace --file "$compose_file" down
     if docker volume inspect archivesspace_app-data >/dev/null 2>&1; then
         docker volume rm archivesspace_app-data
     fi
