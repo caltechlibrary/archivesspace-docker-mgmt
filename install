@@ -55,6 +55,23 @@ fi
     echo "AppConfig[:frontend_proxy_url] = 'http://${DOMAIN}/staff'"
     echo "AppConfig[:oai_proxy_url] = 'http://${DOMAIN}/oai'"
 } >> archivesspace/config/config.rb
+# enable ARK support
+if [ "$ARKS_ENABLED" = "true" ] && [ -n "$ARK_NAAN" ]; then
+    {
+        echo "AppConfig[:arks_enabled] = true"
+        echo "AppConfig[:ark_naan] = '${ARK_NAAN}'"
+        echo "AppConfig[:ark_allow_external_arks] = ${ARK_ALLOW_EXTERNAL_ARKS:-true}"
+    } >> archivesspace/config/config.rb
+fi
+if [ "$ARK_ENABLE_REPOSITORY_SHOULDER" = "true" ] && [ -n "$ARK_SHOULDER" ]; then
+    {
+        echo "AppConfig[:ark_shoulder] = '${ARK_SHOULDER}'"
+        echo "AppConfig[:ark_enable_repository_shoulder] = ${ARK_ENABLE_REPOSITORY_SHOULDER}"
+    } >> archivesspace/config/config.rb
+fi
+if [ -n "$OAI_EAD_OPTIONS" ] && [ "$OAI_EAD_OPTIONS" != "{}" ]; then
+    echo "AppConfig[:oai_ead_options] = '${OAI_EAD_OPTIONS}'" >> archivesspace/config/config.rb
+fi
 # customize the UI with a border color
 if [ -n "$BORDER_COLOR" ]; then
     echo '<%= stylesheet_link_tag "#{@base_url}/assets/custom.css" %>' > archivesspace/plugins/local/frontend/views/layout_head.html.erb
