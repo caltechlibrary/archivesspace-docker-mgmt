@@ -51,9 +51,9 @@ if [ -z "$DOMAIN" ]; then
     DOMAIN="localhost"
 fi
 {
-    echo "AppConfig[:public_proxy_url] = 'http://${DOMAIN}/'"
-    echo "AppConfig[:frontend_proxy_url] = 'http://${DOMAIN}/staff/'"
-    echo "AppConfig[:oai_proxy_url] = 'http://${DOMAIN}/oai/'"
+    echo "AppConfig[:public_proxy_url] = 'http://${DOMAIN}'"
+    echo "AppConfig[:frontend_proxy_url] = 'http://${DOMAIN}/staff'"
+    echo "AppConfig[:oai_proxy_url] = 'http://${DOMAIN}/oai'"
 } >> archivesspace/config/config.rb
 # customize the UI with a border color
 if [ -n "$BORDER_COLOR" ]; then
